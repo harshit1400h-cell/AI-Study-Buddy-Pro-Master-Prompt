@@ -1,25 +1,41 @@
-# Environment and secret files
-.env
-*.env.local
-
-# Python cache and bytecode
+# Python environment & cache
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
-
-# Virtual environments
-venv/
-.venv/
 env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
 
-# Streamlit temporary data
-.streamlit/secrets.toml
+# Secrets and local configurations
+.env
+.env.local
 
-# IDE and OS
-.vscode/
-.idea/
-.DS_Store
-Thumbs.db
+# Databases
+visionfit.db
+*.sqlite3
+
+# Streamlit logs & cache
+.streamlit/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
 

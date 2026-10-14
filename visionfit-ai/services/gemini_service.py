@@ -1,148 +1,130 @@
 """
-Gemini Multimodal Service for VisionFit AI.
-Encapsulates Google Gen AI SDK client, multimodal request dispatching,
-model configuration, and defensive error handling.
+Google Gemini Multimodal API Service for VisionFit AI
+Integrates with official google-genai SDK for vision + text generation.
+Provides robust error handling, key masking, and graceful demo mode fallback.
 """
 
 import os
-from typing import Tuple, Optional, Dict, Any
+import logging
+from typing import Tuple, Dict, Any, Optional
+from PIL import Image
 from dotenv import load_dotenv
 
-# Load local environment if present
+# Load local environment
 load_dotenv()
 
-DEFAULT_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+logger = logging.getLogger("visionfit_gemini")
+
+# Default recommended multimodal model
+DEFAULT_GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
 
 class GeminiService:
-    @staticmethod
-    def get_api_key(runtime_key: Optional[str] = None) -> Optional[str]:
-        """
-        Retrieves API key: checks runtime parameter first, then environment variable.
-        """
-        if runtime_key and runtime_key.strip():
-            return runtime_key.strip()
-        env_key = os.getenv("GEMINI_API_KEY", "").strip()
-        return env_key if env_key else None
+    def __init__(self, api_key: Optional[str] = None, model_name: Optional[str] = None):
+        # Allow passed key or env variable
+        self.api_key = (api_key or os.getenv("GEMINI_API_KEY", "")).strip()
+        self.model_name = (model_name or os.getenv("GEMINI_MODEL", DEFAULT_GEMINI_MODEL)).strip()
+        self._client = None
 
-    @staticmethod
-    def get_model_name(runtime_model: Optional[str] = None) -> str:
+        if self.api_key:
+            try:
+                from google import genai
+                self._client = genai.Client(api_key=self.api_key)
+            except Exception as e:
+                logger.error(f"Failed to initialize google-genai Client: {e}")
+                self._client = None
+
+    @property
+    def is_configured(self) -> bool:
+        """Returns True if a non-empty API key is configured."""
+        return bool(self.api_key and self._client)
+
+    @property
+    def masked_key(self) -> str:
+        """Returns safe masked representation of the API key for UI display."""
+        if not self.api_key:
+            return "Not Configured"
+        if len(self.api_key) <= 8:
+            return "••••••••"
+        return f"{self.api_key[:4]}••••••••{self.api_key[-4:]}"
+
+    def generate_multimodal_content(
+        self,
+        image: Image.Image,
+        prompt: str
+    ) -> Tuple[bool, str, Dict[str, Any]]:
         """
-        Retrieves model name: checks runtime parameter first, then environment, then default.
-        """
-        if runtime_model and runtime_model.strip():
-            return runtime_model.strip()
-        return os.getenv("GEMINI_MODEL", DEFAULT_MODEL)
-
-    @classmethod
-    def test_connection(cls, api_key: Optional[str] = None, model_name: Optional[str] = None) -> Tuple[bool, str]:
-        """
-        Tests API key and model connectivity with a lightweight text probe.
-        """
-        key = cls.get_api_key(api_key)
-        if not key:
-            return False, "No Gemini API Key provided. Set GEMINI_API_KEY in .env or enter it in the sidebar."
-
-        model = cls.get_model_name(model_name)
-
-        try:
-            from google import genai
-            from google.genai import types
-
-            client = genai.Client(api_key=key)
-            response = client.models.generate_content(
-                model=model,
-                contents="Ping. Respond with 'PONG' only.",
-                config=types.GenerateContentConfig(temperature=0.1, max_output_tokens=10)
-            )
-            if response and response.text:
-                return True, f"Connected successfully to Google Gemini ({model})!"
-            return False, "Received empty response from Gemini API."
-        except Exception as e:
-            return False, cls._format_error_message(e)
-
-    @classmethod
-    def generate_multimodal(
-        cls,
-        image_bytes: bytes,
-        mime_type: str,
-        prompt: str,
-        system_instruction: str,
-        api_key: Optional[str] = None,
-        model_name: Optional[str] = None
-    ) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
-        """
-        Executes a multimodal vision request to Gemini: sends image bytes + structured prompt.
-
+        Sends preprocessed image and structured prompt to Gemini Vision model.
+        
         Returns:
-            (success: bool, content_or_error_message: str, metadata: dict)
+            (success: bool, raw_text: str, metadata: Dict[str, Any])
         """
-        key = cls.get_api_key(api_key)
-        if not key:
+        if not self.is_configured:
             return (
                 False,
-                "Gemini API Key missing. Please provide your API key in the sidebar or set GEMINI_API_KEY in .env.",
-                None
+                "",
+                {
+                    "error_type": "MISSING_API_KEY",
+                    "message": "Gemini API key is not configured. Please provide a GEMINI_API_KEY in the sidebar or in your .env file."
+                }
             )
-
-        model = cls.get_model_name(model_name)
 
         try:
-            from google import genai
-            from google.genai import types
-
-            client = genai.Client(api_key=key)
-
-            # Create multimodal parts: Image part + User prompt text part
-            image_part = types.Part.from_bytes(data=image_bytes, mime_type=mime_type)
-            contents = [image_part, prompt]
-
-            config = types.GenerateContentConfig(
-                system_instruction=system_instruction,
-                temperature=0.35,
-                top_p=0.9,
+            # Using official google-genai client
+            # The client accepts PIL images directly in contents alongside text strings
+            response = self._client.models.generate_content(
+                model=self.model_name,
+                contents=[image, prompt]
             )
 
-            # Execute vision analysis
-            response = client.models.generate_content(
-                model=model,
-                contents=contents,
-                config=config
-            )
+            text_output = ""
+            if hasattr(response, "text") and response.text:
+                text_output = response.text
+            elif hasattr(response, "candidates") and response.candidates:
+                candidate = response.candidates[0]
+                if hasattr(candidate, "content") and candidate.content:
+                    parts = getattr(candidate.content, "parts", [])
+                    if parts and hasattr(parts[0], "text"):
+                        text_output = parts[0].text
 
-            if not response or not response.text:
-                return False, "The AI model returned an empty response. Please retry with a clearer photo.", None
+            if not text_output:
+                return (
+                    False,
+                    "",
+                    {
+                        "error_type": "EMPTY_RESPONSE",
+                        "message": "Gemini returned an empty response. Please try again with a clearer image or modified prompt."
+                    }
+                )
 
-            meta = {
-                "model": model,
-                "image_size_kb": len(image_bytes) / 1024,
-                "mime_type": mime_type,
+            return True, text_output, {
+                "model_used": self.model_name,
+                "is_demo": False
             }
 
-            return True, response.text, meta
+        except Exception as exc:
+            err_str = str(exc)
+            logger.error(f"Gemini API call failed: {err_str}")
+            
+            # Categorize common errors for user-friendly guidance
+            if "API_KEY_INVALID" in err_str or "400" in err_str and "key" in err_str.lower():
+                err_type = "INVALID_API_KEY"
+                msg = "The provided Gemini API key was rejected as invalid. Please check your key at Google AI Studio."
+            elif "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
+                err_type = "QUOTA_EXCEEDED"
+                msg = "Gemini API rate limit or quota exceeded. Please wait a minute or use a paid tier project key."
+            elif "503" in err_str or "UNAVAILABLE" in err_str:
+                err_type = "SERVICE_UNAVAILABLE"
+                msg = "Google Gemini service is temporarily busy. Please retry in a few moments."
+            elif "model" in err_str.lower() and "not found" in err_str.lower():
+                err_type = "MODEL_NOT_FOUND"
+                msg = f"Configured model '{self.model_name}' was not found. Please try 'gemini-2.5-flash' or 'gemini-1.5-flash'."
+            else:
+                err_type = "API_ERROR"
+                msg = f"AI Generation error: {err_str[:120]}... Please try again."
 
-        except Exception as e:
-            error_msg = cls._format_error_message(e)
-            return False, error_msg, None
-
-    @staticmethod
-    def _format_error_message(exc: Exception) -> str:
-        """
-        Translates raw API exceptions into actionable, user-friendly guidance.
-        """
-        err_str = str(exc)
-        err_lower = err_str.lower()
-
-        if "api_key" in err_lower or "api key not valid" in err_lower or "403" in err_lower or "unauthenticated" in err_lower:
-            return "Invalid or unauthorized Gemini API Key. Please verify your key at https://aistudio.google.com/ and update it in settings."
-        elif "quota" in err_lower or "resource_exhausted" in err_lower or "429" in err_lower:
-            return "Gemini API rate limit or free quota exceeded. Please wait 30 seconds and try again, or switch to a paid quota."
-        elif "not_found" in err_lower or "model" in err_lower and "not found" in err_lower:
-            return f"Selected model was not recognized by the API. Try switching to 'gemini-2.5-flash' or 'gemini-2.0-flash'. Details: {err_str}"
-        elif "timeout" in err_lower or "timed out" in err_lower:
-            return "Connection to Gemini timed out. Please check your internet connection and try again."
-        elif "connection" in err_lower or "network" in err_lower:
-            return "Network error connecting to Google GenAI servers. Please ensure you are connected to the internet."
-        else:
-            return f"Gemini API Error: {err_str}"
+            return False, "", {
+                "error_type": err_type,
+                "message": msg
+            }
 

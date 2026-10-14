@@ -1,100 +1,108 @@
 """
-Input validation utilities for VisionFit AI.
-Ensures image safety, format compatibility, size constraints, and input sanitization.
+Image and Input Validation Utilities for VisionFit AI
+Ensures files are valid, safe, within size bounds, and properly formatted before processing.
 """
 
-import io
 from typing import Tuple, Optional
-from PIL import Image, UnidentifiedImageError
+from io import BytesIO
+from PIL import Image
 
-# Supported mime types and extensions
-SUPPORTED_EXTENSIONS = {"jpg", "jpeg", "png", "webp"}
-SUPPORTED_MIME_TYPES = {
-    "image/jpeg",
-    "image/png",
-    "image/webp",
-    "image/jpg",
-}
-
-DEFAULT_MAX_SIZE_MB = 10.0
-MIN_DIMENSION = 50
-MAX_DIMENSION = 8000
+# Allowed configurations
+ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
+ALLOWED_MIME_TYPES = {"image/jpeg", "image/png", "image/webp"}
+MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024  # 10 MB
+MIN_IMAGE_DIMENSION = 32
+MAX_IMAGE_DIMENSION = 8000
 
 
-def validate_image_file(
-    file_bytes: bytes,
-    file_name: str,
-    max_size_mb: float = DEFAULT_MAX_SIZE_MB
-) -> Tuple[bool, Optional[str], Optional[Image.Image]]:
+def validate_uploaded_image(file_obj) -> Tuple[bool, str, Optional[Image.Image]]:
     """
-    Validates uploaded image bytes for size, format, and corruption.
-
+    Validates an uploaded file object from Streamlit.
+    Checks:
+      1. Presence
+      2. File size within allowed limits (< 10MB)
+      3. Extension / MIME type
+      4. Pillow integrity check (can open, verify, and read format)
+      5. Minimum / maximum pixel dimensions
+      
     Returns:
-        (is_valid, error_message, PIL_Image_or_None)
+      (is_valid: bool, error_message: str, image_pil: Optional[Image.Image])
     """
-    if not file_bytes:
-        return False, "The uploaded file is empty. Please select a valid image.", None
+    if file_obj is None:
+        return False, "No file was uploaded.", None
 
-    # 1. Size check
-    file_size_mb = len(file_bytes) / (1024 * 1024)
-    if file_size_mb > max_size_mb:
+    # Check file size
+    try:
+        file_obj.seek(0, 2)  # Seek to end
+        file_size = file_obj.tell()
+        file_obj.seek(0)  # Reset pointer
+    except Exception:
+        file_size = getattr(file_obj, "size", 0)
+
+    if file_size > MAX_FILE_SIZE_BYTES:
+        size_mb = round(file_size / (1024 * 1024), 2)
+        return False, f"File size ({size_mb} MB) exceeds maximum limit of 10 MB.", None
+
+    if file_size == 0:
+        return False, "Uploaded file appears to be empty (0 bytes).", None
+
+    # Check extension
+    filename = getattr(file_obj, "name", "image.jpg").lower()
+    has_valid_ext = any(filename.endswith(ext) for ext in ALLOWED_EXTENSIONS)
+    if not has_valid_ext:
         return (
             False,
-            f"File size ({file_size_mb:.1f} MB) exceeds maximum allowed limit of {max_size_mb} MB.",
+            f"Unsupported file format '{filename}'. Allowed formats: JPG, JPEG, PNG, WEBP.",
             None,
         )
 
-    # 2. Extension check
-    ext = file_name.rsplit(".", 1)[-1].lower() if "." in file_name else ""
-    if ext not in SUPPORTED_EXTENSIONS:
-        return (
-            False,
-            f"Unsupported image format '.{ext}'. Supported formats: {', '.join(sorted(SUPPORTED_EXTENSIONS)).upper()}.",
-            None,
-        )
-
-    # 3. Pillow corruption & readability check
+    # Open and verify with Pillow
     try:
-        image_stream = io.BytesIO(file_bytes)
-        img = Image.open(image_stream)
-        img.verify()  # Verify integrity without fully decoding
-    except UnidentifiedImageError:
-        return False, "Cannot identify image format. The file may be damaged or not a supported image.", None
-    except Exception as e:
-        return False, f"Corrupted or invalid image file: {str(e)}", None
-
-    # 4. Re-open for actual processing (verify() closes or exhausts the stream)
-    try:
-        image_stream.seek(0)
-        img = Image.open(image_stream)
+        # Read into BytesIO to avoid closing or altering original stream
+        bytes_data = file_obj.read()
+        file_obj.seek(0)
         
-        # Dimension check
+        img = Image.open(BytesIO(bytes_data))
+        img.verify()  # Verifies file integrity
+        
+        # Need to reopen because verify() damages the stream for subsequent operations
+        img = Image.open(BytesIO(bytes_data))
+        
+        # Check dimensions
         width, height = img.size
-        if width < MIN_DIMENSION or height < MIN_DIMENSION:
+        if width < MIN_IMAGE_DIMENSION or height < MIN_IMAGE_DIMENSION:
             return (
                 False,
-                f"Image is too small ({width}x{height}px). Minimum resolution is {MIN_DIMENSION}x{MIN_DIMENSION}px.",
+                f"Image resolution ({width}x{height}) is too small to recognize items clearly. Minimum is {MIN_IMAGE_DIMENSION}x{MIN_IMAGE_DIMENSION}.",
                 None,
             )
-        if width > MAX_DIMENSION or height > MAX_DIMENSION:
+            
+        if width > MAX_IMAGE_DIMENSION or height > MAX_IMAGE_DIMENSION:
             return (
                 False,
-                f"Image resolution ({width}x{height}px) exceeds max dimensions of {MAX_DIMENSION}px.",
+                f"Image resolution ({width}x{height}) exceeds maximum dimension of {MAX_IMAGE_DIMENSION}px.",
                 None,
             )
 
-        return True, None, img
+        # Convert to RGB if RGBA/P to ensure compatibility across all vision models
+        if img.mode in ("RGBA", "P"):
+            rgb_img = Image.new("RGB", img.size, (255, 255, 255))
+            if img.mode == "RGBA":
+                rgb_img.paste(img, mask=img.split()[3])
+            else:
+                rgb_img.paste(img.convert("RGBA"))
+            return True, "", rgb_img
+
+        return True, "", img
+
     except Exception as e:
-        return False, f"Failed to load image for processing: {str(e)}", None
+        return False, f"Invalid or corrupted image file: {str(e)}", None
 
 
-def sanitize_text_input(text: Optional[str], max_chars: int = 300) -> str:
-    """
-    Sanitizes user text inputs (exclusions, allergies, notes).
-    """
+def sanitize_text_input(text: Optional[str], max_len: int = 300) -> str:
+    """Safely sanitizes text input and strips leading/trailing characters."""
     if not text:
         return ""
-    # Strip potential control characters
-    cleaned = "".join(ch for ch in text if ch.isprintable())
-    return cleaned.strip()[:max_chars]
+    cleaned = text.strip()
+    return cleaned[:max_len]
 

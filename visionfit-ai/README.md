@@ -1,92 +1,83 @@
-# VisionFit AI — Multimodal Recipe & Workout Generator ⚡
+# VisionFit AI – Multimodal Recipe & Workout Generator
 
-> *"See What You Have. Discover What You Can Do."*
+> **Tagline:** *"See What You Have. Discover What You Can Do."*
 
-**VisionFit AI** is an intelligent lifestyle web application that combines food discovery and fitness planning in one platform. By utilizing multimodal Generative AI powered by Google's vision-capable Gemini models, users can upload photos of raw kitchen ingredients or home gym equipment and receive tailored recipes and workout routines.
+VisionFit AI is an intelligent lifestyle web application that bridges food discovery and fitness planning in one modern platform. Utilizing Google Gemini's multimodal vision capabilities, VisionFit AI allows users to take a photo of ingredients available on their kitchen counter or fitness equipment in their home gym to instantly generate personalized, practical recipes and structured workout routines.
 
 ---
 
 ## 🌟 Key Features
 
-### 1. 🍲 AI Recipe Generator Mode
-- **Visual Ingredient Audit**: Examines uploaded photographs of pantry staples, produce, and refrigerator contents.
-- **Uncertainty Acknowledgment**: Explicitly flags ambiguous or blurry ingredients for user verification rather than hallucinating false certainty.
-- **Personalized Cooking Criteria**:
-  - Meal Type: Breakfast, Lunch, Dinner, Snack, Post-Workout
-  - Dietary Tag: No Preference, Vegetarian, Vegan, Eggetarian
-  - Cuisine: Indian, Italian, Asian, Mediterranean, Any
-  - Max Cook Time: 10, 20, 30, 45+ minutes
-  - Servings: 1 to 8 people
-  - Custom inclusions, exclusions, and allergy constraints
-- **Structured Output**:
-  - Detailed recipe title & description
-  - Preparation, cooking, and total time
-  - Ingredients from photo vs. common pantry staples vs. items to purchase
-  - Clear, numbered step-by-step cooking instructions
-  - Estimated caloric and macronutrient breakdown (calories, protein, carbs, fats, fiber)
-  - Chef substitutions, pairing suggestions, and food storage guidance
-- **Interactive Tools**: 1-click **Save to Favorites**, **Copy Markdown**, and **Download (.md)**.
+### 🥗 1. AI Recipe Generator (Culinary Vision)
+- **Visual Food Recognition:** Detects fresh produce, pantry staples, spices, and refrigerated items from uploaded photographs.
+- **Uncertainty Transparency:** Explicitly tags ambiguous or partially visible items so users can verify before cooking.
+- **Dietary Precision:** Strict guardrails for Vegetarian, Vegan, Eggetarian, and allergen safety (Peanuts, Gluten, Dairy, etc.).
+- **Chef-Crafted Steps:** Clear, beginner-friendly instructions with timing and temperatures.
+- **Approximate Nutritional Profiles:** Estimated calories, protein, carbohydrates, fats, and dietary fiber per serving.
+- **Substitutions & Storage Advice:** Alternative ingredients and practical leftover storage tips.
 
-### 2. 🏋️ AI Workout Generator Mode
-- **Visual Equipment Detection**: Detects dumbbells, kettlebells, barbells, resistance bands, pull-up bars, benches, and open floor space.
-- **Environment & Gear Safety Check**: Reminds users to verify surface grip and equipment stability before loading weight.
-- **Customizable Training Preferences**:
-  - Primary Goal: Strength, General Fitness, Endurance, Mobility, Weight Management
-  - Experience Level: Beginner, Intermediate, Advanced
-  - Session Duration: 15, 20, 30, 45, 60 minutes
-  - Location: Home, Gym, Outdoor
-  - Equipment Preference: Use Visible Equipment, Bodyweight Only
-  - Focus Area: Full Body, Upper Body, Lower Body, Core, Cardio
-  - Injury & Movement Limitations: e.g., "no jumping", "lower back pain"
-- **Structured Routine**:
-  - Overview with target muscle groups and gear needed
-  - Dynamic Warm-up (5–8 minutes) with mobilization cues
-  - Main Workout: Sets, repetitions, rest intervals, execution technique, common mistakes, and easier regressions
-  - Cool-down & Mobility stretches
-  - Stop cues for pain or dizziness
-- **Interactive Tools**: **Save to Favorites**, **Copy Plan**, and **Download (.md)**.
+### 🏋️‍♂️ 2. AI Workout Generator (Biomechanics Vision)
+- **Equipment & Space Understanding:** Identifies dumbbells, kettlebells, resistance bands, pull-up bars, or open mat space.
+- **Adaptive Structuring:** Tailored to user's fitness goal (Strength, General Fitness, Endurance, Mobility, Weight Management) and experience level (Beginner, Intermediate, Advanced).
+- **Comprehensive Routine:**
+  - **Dynamic Warm-Up:** Joint lubrication and mobility activation.
+  - **Main Workout:** Sets, repetitions, rest periods, target muscles, proper form cues, common mistakes, and **easier alternatives** for scaling.
+  - **Cool-Down:** Decompression stretches with hold durations.
+- **Safety First:** Prompts users to inspect gear stability and stop if acute joint pain or dizziness occurs.
 
-### 3. ⭐ My Favorites & Export Dashboard
-- Organized tabs for saved recipes and workout routines.
-- Expandable cards with dates, metrics, and full plan details.
-- Clean Markdown (`.md`) export generator with export timestamp headers.
-- Individual deletion or session management.
+### ⚡ 3. Multimodal Gemini Integration
+- Powered by Google's official **`google-genai`** SDK.
+- Configurable model (defaults to `gemini-2.5-flash` with support for `gemini-2.0-flash` and `gemini-1.5-flash`).
+- **Interactive In-Browser Configuration:** Set or change your API key directly in the sidebar or via `.env`.
+- **Offline Demo Simulation Mode:** If no API key is provided, the application runs transparently in Demo Mode with realistic simulated responses so users can test immediately.
 
-### 4. 🎨 Premium SaaS Dark UI/UX
-- Custom dark navy and charcoal background (`#080d1a`, `#0f172a`, `#1e293b`).
-- Electric lime / emerald green accent (`#10b981`, `#34d399`).
-- Metric cards, stat grids, pill tags, and smooth hover transitions.
-- Responsive layout across desktop, tablet, and mobile browsers.
+### ⭐ 4. Personal Favorites & Library
+- Save custom recipes and workouts with one click.
+- Persistent SQLite storage (`visionfit.db`) paired with Streamlit session state.
+- Filter by category, view full details in an expander, and export to Markdown files (`.md`).
+- Bulk clear and individual deletion controls.
 
 ---
 
-## 🏗️ Project Architecture
+## 🛠️ Technology Stack
+
+| Component | Technology | Description |
+|-----------|------------|-------------|
+| **User Interface** | [Streamlit](https://streamlit.io/) (v1.35+) | Modern, responsive reactive web UI |
+| **Multimodal Vision AI** | [Google Gen AI SDK](https://github.com/google-gemini/google-genai) (`google-genai`) | Official Python client for Gemini 2.5 / 1.5 |
+| **Computer Vision / Preprocessing** | [Pillow (PIL)](https://pillow.readthedocs.io/) | Image validation, aspect-ratio resizing, format normalization |
+| **Styling & Theme** | Custom Modern CSS | Dark Navy (`#0B0F19`), Charcoal, Emerald (`#10B981`), and Lime accents |
+| **Database** | SQLite3 | Local persistence for favorites and history |
+| **Language** | Python 3.11+ | Clean, modular, beginner-friendly architecture |
+
+---
+
+## 📁 Project Architecture
 
 ```
 visionfit-ai/
-├── app.py                      # Main Streamlit application and page router
-├── requirements.txt            # Python package dependencies
-├── .env.example                # Environment variables template
-├── .gitignore                  # Git exclusions for secrets and bytecode
-├── README.md                   # Comprehensive documentation
-├── test_visionfit.py           # Automated unit and integration test suite
-├── create_sample_images.py     # Test image generator utility
-├── services/
-│   ├── __init__.py             # Service exports
-│   ├── gemini_service.py       # Official google-genai client & multimodal calls
-│   ├── image_service.py        # PIL preprocessing, resizing, EXIF rotation
-│   ├── recipe_service.py       # Recipe generation, parsing, favorites
-│   └── workout_service.py      # Workout generation, parsing, favorites
-├── utils/
-│   ├── __init__.py             # Utility exports
-│   ├── prompts.py              # Structured system instructions & user prompts
-│   ├── validators.py           # File size, mime type, corruption validation
-│   └── formatting.py           # Markdown card generators and demo templates
+├── app.py                     # Main Streamlit dashboard and page router
+├── requirements.txt           # Python package dependencies
+├── .env.example               # Environment variables template
+├── .gitignore                 # Git ignore rules for secrets and caches
+├── README.md                  # Complete documentation and setup guide
+├── visionfit.db               # SQLite database for saved favorites
 ├── assets/
-│   └── custom.css              # Dark SaaS Navy & Emerald/Lime styles
-└── sample_images/              # Pre-packaged test images for instant testing
-    ├── sample_ingredients.jpg  # Bell peppers, chickpeas, garlic, olive oil
-    └── sample_equipment.jpg    # Dumbbells, yoga mat, kettlebell, bands
+│   └── custom.css             # Premium SaaS dark stylesheet
+├── services/
+│   ├── __init__.py
+│   ├── gemini_service.py      # Google Gen AI SDK integration & error handling
+│   ├── image_service.py       # Pillow preprocessing & sample image generators
+│   ├── recipe_service.py      # Recipe multimodal orchestration & demo recipes
+│   ├── workout_service.py     # Workout multimodal orchestration & demo routines
+│   └── storage_service.py     # SQLite persistence for favorites & metrics
+├── utils/
+│   ├── __init__.py
+│   ├── prompts.py             # Multimodal prompt contracts for Gemini
+│   ├── validators.py          # Image type, size, and dimension validators
+│   └── formatting.py          # Markdown export and JSON extractors
+└── tests/
+    └── test_visionfit.py      # Automated pytest unit and integration test suite
 ```
 
 ---
@@ -94,70 +85,101 @@ visionfit-ai/
 ## 🚀 Getting Started
 
 ### 1. Prerequisites
-- Python 3.11 or compatible version installed.
-- Free Gemini API key from [Google AI Studio](https://aistudio.google.com/).
+- Python 3.11 or higher installed (`python --version`)
+- A modern web browser (Chrome, Edge, Firefox, Safari)
+- *(Optional)* A Google Gemini API key from [Google AI Studio](https://aistudio.google.com/)
 
 ### 2. Installation
-Navigate to the project directory and install the requirements:
-```bash
-cd visionfit-ai
-pip install -r requirements.txt
-```
 
-### 3. Configure API Key
-Create a `.env` file in the `visionfit-ai` folder (or copy from `.env.example`):
-```bash
-cp .env.example .env
-```
-Add your API key:
-```env
-GEMINI_API_KEY=your_actual_api_key_here
-GEMINI_MODEL=gemini-2.5-flash
-MAX_IMAGE_SIZE_MB=10
-```
-*(Alternatively, you can paste your API key directly into the application's sidebar input at runtime.)*
+1. Open your terminal or PowerShell and navigate to the project folder:
+   ```bash
+   cd "path/to/visionfit-ai"
+   ```
 
-### 4. Run the Application
-Launch with Streamlit:
+2. Create and activate a Python virtual environment:
+   ```bash
+   # Windows (PowerShell)
+   python -m venv venv
+   .\venv\Scripts\Activate.ps1
+
+   # macOS / Linux
+   python3 -m venv venv
+   source venv/bin/activate
+   ```
+
+3. Install required dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+### 3. API Key Setup
+
+1. Get a free API key from [Google AI Studio](https://aistudio.google.com/).
+2. Copy `.env.example` to `.env`:
+   ```bash
+   cp .env.example .env
+   ```
+3. Open `.env` and paste your key:
+   ```env
+   GEMINI_API_KEY=AIzaSyYourActualKeyHere
+   GEMINI_MODEL=gemini-2.5-flash
+   ```
+   *Tip: You can also enter or update your API key at runtime directly in the web app's sidebar!*
+
+### 4. Running the Application
+
+Launch the Streamlit web server:
 ```bash
 streamlit run app.py
 ```
-Or double-click `run_visionfit.bat` from the root directory on Windows.
-
-Open your browser to:
-```
-http://localhost:8501
-```
-
----
-
-## 🧪 Automated Testing
-Run the 10-point verification test suite:
+Or from the project root workspace:
 ```bash
-python test_visionfit.py
+streamlit run app.py
 ```
-**Tests Covered:**
-1. Valid image acceptance and dimension checks.
-2. Rejection of empty, non-image, and corrupted files.
-3. Image preprocessing (RGBA conversion, Lanczos downsampling, JPEG encoding).
-4. User text input sanitization.
-5. Recipe prompt construction with dietary and allergy constraints.
-6. Workout prompt construction with experience and injury limitations.
-7. Recipe markdown parsing and session state favorites management.
-8. Workout markdown parsing and session state favorites management.
-9. Standalone Markdown export formatting.
-10. Gemini service connection handling and informative error mapping.
+
+The application will automatically open in your default browser at `http://localhost:8501`.
 
 ---
 
-## 🛡️ Safety & Medical Disclaimers
-1. **Visual Recognition**: Image analysis is an AI-assisted estimate. Users must inspect food items for spoilage and verify potential allergens.
-2. **Exercise Guidance**: Physical activity carries inherent risks. Users should stop immediately if experiencing pain, dizziness, or shortness of breath.
-3. **Equipment Stability**: A photograph cannot determine bolt tightness or floor stability. Inspect all exercise equipment before putting it into use.
-4. **Nutrition Approximations**: Calorie and macronutrient estimates depend on actual portions, brands, and cooking oils used.
+## 🧪 Running Automated Tests
+
+Run the full automated test suite using `pytest`:
+```bash
+python -m pytest tests/ -v
+```
+
+All 10 unit and integration tests cover:
+- Valid and invalid image formats (.jpg, .png, .webp, corrupted/empty files).
+- Image downsampling and RGB normalization.
+- Programmatic sample kitchen and gym visual generation.
+- Structured JSON extraction from markdown responses.
+- Prompt contract verification (dietary constraints, allergen safety, exercise scaling).
+- SQLite storage CRUD operations (save, list, filter, count, delete).
+- Offline Demo Mode fallback behavior.
 
 ---
 
-## 📄 License
-MIT License. Built for students, home cooks, and fitness enthusiasts worldwide.
+## 🔍 Troubleshooting
+
+| Issue | Cause | Solution |
+|-------|-------|----------|
+| **"Gemini API key is not configured"** | No key in `.env` or sidebar | Expand the "🔑 Configure API Key" section in the sidebar and paste your key, or run in Demo Mode. |
+| **"File size exceeds maximum limit of 10 MB"** | Uploaded image is too large | Compress your image or take a standard photo below 10 MB. |
+| **"API rate limit or quota exceeded (429)"** | Free tier requests per minute limit reached | Wait 60 seconds before generating again, or switch to a different Gemini project. |
+| **"Model not found"** | Older or retired model specified | Choose `gemini-2.5-flash` or `gemini-1.5-flash` in the sidebar model dropdown. |
+
+---
+
+## 🛡️ Medical & Safety Disclaimers
+
+1. **Nutrition Estimates:** Nutritional values (calories, protein, carbohydrates, fats, fiber) are algorithmic approximations calculated from standard food databases. Actual numbers vary based on cooking oils, portion sizes, and specific brands.
+2. **Allergen Alert:** While the AI is strictly instructed to avoid stated allergens, users must verify food labels and ingredients independently.
+3. **Exercise Safety:** Inspect all exercise equipment for structural stability, secure bolts, and proper anchoring before use. An AI vision model cannot inspect hardware wear or tensile strength from an image.
+4. **Physician Consultation:** Discontinue exercise immediately if you experience dizziness, chest pain, or acute joint distress. Consult a qualified medical practitioner before undertaking any new fitness regimen.
+
+---
+
+## 📜 License & Credits
+
+Built with ❤️ for culinary creativity and functional fitness. Powered by **Google Gemini** and **Streamlit**.
 

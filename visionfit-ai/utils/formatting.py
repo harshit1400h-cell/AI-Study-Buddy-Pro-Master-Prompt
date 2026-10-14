@@ -1,185 +1,267 @@
 """
-Formatting and Export Utilities for VisionFit AI.
-Provides downloadable Markdown/text generators and demo fallback templates.
+Formatting and Parsing Utilities for VisionFit AI
+Handles Markdown export, JSON extraction from LLM outputs, and data rendering.
 """
 
-from typing import Dict, Any
+import json
+import re
+from typing import Dict, Any, Optional
 
 
-def format_export_file(item_data: Dict[str, Any]) -> str:
+def extract_json_from_response(text: str) -> Optional[Dict[str, Any]]:
     """
-    Creates an exportable, standalone Markdown document with metadata and timestamps.
+    Extracts JSON object from AI model response.
+    Tolerates markdown code fences (```json ... ``` or ``` ... ```).
     """
-    item_type = item_data.get("type", "Plan").capitalize()
-    title = item_data.get("title", f"VisionFit {item_type}")
-    created_at = item_data.get("created_at", "N/A")
-    raw_md = item_data.get("raw_markdown", "")
+    if not text:
+        return None
 
-    header = f"""<!--
-  ==============================================================
-  VisionFit AI — Generated {item_type} Plan
-  Export Date: {created_at}
-  Platform: VisionFit AI (Multimodal Food & Fitness Assistant)
-  Tagline: See What You Have. Discover What You Can Do.
-  ==============================================================
--->
+    text = text.strip()
 
-"""
-    return header + raw_md
+    # Try 1: Direct JSON parsing
+    try:
+        return json.loads(text)
+    except Exception:
+        pass
 
+    # Try 2: Look for ```json ... ``` blocks
+    json_match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", text, re.IGNORECASE)
+    if json_match:
+        try:
+            return json.loads(json_match.group(1).strip())
+        except Exception:
+            pass
 
-def generate_sample_recipe_markdown(preferences: Dict[str, Any]) -> str:
-    """
-    High-fidelity sample recipe markdown for demonstration and inspection testing.
-    """
-    meal = preferences.get("meal_type", "Dinner")
-    diet = preferences.get("dietary_preference", "Vegetarian")
-    servings = preferences.get("servings", 2)
-    time = preferences.get("cooking_time", "25 minutes")
+    # Try 3: Look for outer curly braces { ... }
+    first_brace = text.find("{")
+    last_brace = text.rfind("}")
+    if first_brace != -1 and last_brace != -1 and last_brace > first_brace:
+        candidate = text[first_brace : last_brace + 1]
+        try:
+            return json.loads(candidate)
+        except Exception:
+            pass
 
-    return f"""# 🥗 Mediterranean Charred Bell Pepper & Chickpea Protein Bowl
-
-> **Visual Ingredient Audit**:
-> - **Confident Detections**: Red & Yellow Bell Peppers, Canned Chickpeas, Garlic cloves, Fresh Basil leaves, Olive oil bottle.
-> - **Uncertain / Ambiguous Items**: Small green leafy sprigs in background (Uncertain identification - please verify as parsley or cilantro).
-
----
-
-## 📋 A. Recipe Overview
-- **Description**: A nutrient-packed, vibrant Mediterranean skillet bowl pairing caramelized sweet peppers with crispy garlic-toasted chickpeas and fragrant herbs.
-- **Cuisine**: Mediterranean
-- **Preparation Time**: 10 mins
-- **Cooking Time**: 15 mins
-- **Total Time**: {time}
-- **Servings**: {servings}
-- **Difficulty**: Easy
-- **Dietary Tags**: [{diet}, High Protein, Balanced Meal]
-
----
-
-## 🥕 B. Ingredients
-### From Your Photo:
-- 2 Medium Bell Peppers (sliced into 1/2-inch strips)
-- 1 Can (400g) Chickpeas (rinsed and thoroughly dried)
-- 3 Cloves Fresh Garlic (minced)
-- 1 Handful Fresh Basil (coarsely torn)
-- 2 Tbsp Extra Virgin Olive Oil
-
-### Common Pantry Staples & Additions:
-- 1/2 Tsp Ground Cumin *(Pantry Staple)*
-- 1/2 Tsp Smoked Paprika *(Pantry Staple)*
-- 1/2 Tsp Sea Salt & Fresh Cracked Black Pepper *(Pantry Staple)*
-- 1 Tbsp Lemon Juice *(Optional - for finishing brightness)*
-- 50g Crumbled Feta Cheese or Hemp Seeds *(Optional - additional protein boost)*
-
----
-
-## 🍳 C. Step-by-Step Cooking Instructions
-1. **Prep & Dry**: Thoroughly pat chickpeas dry with a clean paper towel. Moisture is the enemy of crispiness.
-2. **Sear Peppers**: Heat 1 tablespoon of olive oil in a wide stainless steel or cast-iron skillet over medium-high heat. Add sliced bell peppers. Sear undisturbed for 3-4 minutes until blistered edges appear. Transfer peppers to a side plate.
-3. **Crisp Chickpeas**: Add the remaining tablespoon of oil to the same skillet. Add dried chickpeas, cumin, smoked paprika, salt, and black pepper. Sauté over medium heat, tossing frequently, for 6-8 minutes until golden and crunchy.
-4. **Infuse Aromatics**: Lower heat to medium-low. Stir in minced garlic and cook for 60 seconds until fragrant without burning.
-5. **Combine & Garnish**: Return charred bell peppers to skillet. Toss together for 1 minute to harmonize temperatures. Remove from heat, stir in fresh lemon juice and torn basil. Top with feta or hemp seeds if desired.
-
----
-
-## 🥗 D. Approximate Nutrition Breakdown (Per Serving)
-*(Note: These values are estimated approximations based on standard ingredient proportions.)*
-- **Calories**: ~420 kcal
-- **Protein**: ~18g
-- **Carbohydrates**: ~52g
-- **Dietary Fiber**: ~14g
-- **Total Fats**: ~16g (primarily heart-healthy monounsaturated fats)
-
----
-
-## 💡 E. Chef's Suggestions & Storage
-- **Substitutions**: Swap chickpeas for canned white cannellini beans or firm cubed tofu.
-- **Serving Suggestion**: Serve warm over a bed of quinoa, brown rice, or alongside warm pita bread.
-- **Storage Tips**: Store in an airtight glass container in the refrigerator for up to 4 days. Reheat in a hot skillet for 2 minutes to restore crunch.
-"""
+    return None
 
 
-def generate_sample_workout_markdown(preferences: Dict[str, Any]) -> str:
-    """
-    High-fidelity sample workout markdown for demonstration and inspection testing.
-    """
-    goal = preferences.get("goal", "Strength & Conditioning")
-    exp = preferences.get("experience", "Beginner")
-    duration = preferences.get("duration", "30 minutes")
-    focus = preferences.get("focus", "Full Body")
+def format_recipe_markdown(recipe_data: Dict[str, Any]) -> str:
+    """Formats structured recipe data into clean, exportable Markdown."""
+    title = recipe_data.get("title", "Delicious Homemade Recipe")
+    cuisine = recipe_data.get("cuisine", "General")
+    meal_type = recipe_data.get("meal_type", "Meal")
+    prep_time = recipe_data.get("prep_time_minutes", 15)
+    cook_time = recipe_data.get("cook_time_minutes", 20)
+    total_time = recipe_data.get("total_time_minutes", prep_time + cook_time)
+    servings = recipe_data.get("servings", 2)
+    difficulty = recipe_data.get("difficulty", "Medium")
+    desc = recipe_data.get("description", "")
+    
+    vis_ing = recipe_data.get("visually_identified_ingredients", [])
+    uncertain = recipe_data.get("uncertain_items", [])
+    ingredients = recipe_data.get("ingredients", [])
+    steps = recipe_data.get("steps", [])
+    nutrition = recipe_data.get("nutrition_estimates", {})
+    substitutions = recipe_data.get("substitutions", [])
+    storage_tips = recipe_data.get("storage_tips", "")
 
-    return f"""# ⚡ Full-Body Dumbbell & Functional Conditioning Circuit
+    md = [
+        f"# 🥗 {title}",
+        f"**Cuisine:** {cuisine} | **Meal Type:** {meal_type} | **Difficulty:** {difficulty}",
+        f"**Prep Time:** {prep_time} mins | **Cook Time:** {cook_time} mins | **Total Time:** {total_time} mins | **Servings:** {servings}",
+        "",
+        f"*{desc}*",
+        "",
+        "---",
+        "## 🔍 Visual Item Analysis",
+    ]
 
-> **Visual Equipment Audit**:
-> - **Identified Equipment**: Pair of Hex Dumbbells (approx 7.5kg - 10kg), High-density Yoga Mat, Open floor space (~2m x 2m).
-> - **Uncertain / Makeshift Objects**: Foam roller near wall (Optional for cool-down).
-> - **Environment Safety Note**: Surface is flat and non-slip; ensure clear 360-degree perimeter around dumbbells.
+    if vis_ing:
+        md.append(f"- **Confirmed Identified Ingredients:** {', '.join(vis_ing)}")
+    if uncertain:
+        md.append(f"- **Uncertain / Unclear Items:** {', '.join(uncertain)} *(please verify before cooking)*")
+    
+    md.extend([
+        "",
+        "## 🛒 Ingredients",
+    ])
 
----
+    for item in ingredients:
+        name = item.get("name", "Ingredient")
+        qty = item.get("quantity", "")
+        unit = item.get("unit", "")
+        is_optional = item.get("is_optional", False)
+        need_to_buy = item.get("need_to_buy", False)
+        
+        tags = []
+        if is_optional:
+            tags.append("optional")
+        if need_to_buy:
+            tags.append("pantry / need to purchase")
+        
+        tag_str = f" *({', '.join(tags)})*" if tags else ""
+        qty_str = f"{qty} {unit}".strip()
+        if qty_str:
+            md.append(f"- **{qty_str}** {name}{tag_str}")
+        else:
+            md.append(f"- {name}{tag_str}")
 
-## ⏱️ A. Workout Overview
-- **Goal Focus**: {goal}
-- **Experience Level**: {exp}
-- **Total Duration**: {duration}
-- **Target Muscle Groups**: Quadriceps, Hamstrings, Upper Back, Chest, Core stabilizers
-- **Required Gear**: Dumbbells & Yoga Mat
+    md.extend([
+        "",
+        "## 👩‍🍳 Step-by-Step Cooking Instructions",
+    ])
 
----
+    for i, step in enumerate(steps, 1):
+        if isinstance(step, dict):
+            instruction = step.get("instruction", "")
+            temp_or_time = step.get("time_or_temp", "")
+            time_note = f" *({temp_or_time})*" if temp_or_time else ""
+            md.append(f"{i}. {instruction}{time_note}")
+        else:
+            md.append(f"{i}. {step}")
 
-## 🏃 B. Dynamic Warm-Up (6 Mins)
-1. **Arm Circles & Torso Twists**: 60 seconds — Mobilize shoulder capsules and thoracic spine.
-2. **Bodyweight Hip Openers & Glute Bridges**: 90 seconds — Activate posterior chain.
-3. **Cat-Cow & Inchworms**: 2 minutes — Dynamic spinal decompression and hamstring prep.
+    md.extend([
+        "",
+        "## 📊 Approximate Nutrition Estimates (Per Serving)",
+        "> **Notice:** All nutritional values are algorithmic approximations based on standard ingredient tables. Actual values depend on specific brands, cooking oils, and precise portions.",
+        "",
+    ])
 
----
+    cals = nutrition.get("calories", "N/A")
+    protein = nutrition.get("protein_g", "N/A")
+    carbs = nutrition.get("carbs_g", "N/A")
+    fats = nutrition.get("fats_g", "N/A")
+    fiber = nutrition.get("fiber_g", "N/A")
 
-## 💪 C. Main Workout Routine (3 Rounds • 45s Work / 30s Rest)
+    md.append(f"- **Calories:** ~{cals} kcal")
+    md.append(f"- **Protein:** ~{protein} g")
+    md.append(f"- **Carbohydrates:** ~{carbs} g")
+    md.append(f"- **Fats:** ~{fats} g")
+    if fiber != "N/A":
+        md.append(f"- **Dietary Fiber:** ~{fiber} g")
 
-### Exercise 1: Dumbbell Goblet Squat
-- **Sets & Reps / Duration**: 3 Sets × 10-12 Controlled Reps
-- **Rest Interval**: 60 seconds between rounds
-- **Target Muscles**: Quadriceps, Gluteus Maximus, Core
-- **Form & Technique**: Hold one dumbbell vertically against upper chest. Stand feet shoulder-width apart. Inhale, hinge hips back and descend until thighs are parallel to ground. Drive through midfoot to stand.
-- **Common Mistakes**: Knees caving inward or chest collapsing forward.
-- **Easier Alternative (Regression)**: Bodyweight air squats targeting a chair or bench.
+    if substitutions or storage_tips:
+        md.extend(["", "## 💡 Chef's Suggestions & Storage"])
+        if substitutions:
+            md.append("**Substitutions:**")
+            for sub in substitutions:
+                md.append(f"- {sub}")
+        if storage_tips:
+            md.append(f"\n**Storage & Freshness:**\n- {storage_tips}")
 
-### Exercise 2: Neutral-Grip Dumbbell Floor Press
-- **Sets & Reps / Duration**: 3 Sets × 10-12 Reps
-- **Rest Interval**: 45 seconds
-- **Target Muscles**: Pectoralis Major, Anterior Deltoids, Triceps
-- **Form & Technique**: Lie flat on mat with knees bent. Hold dumbbells with palms facing each other. Lower elbows at a 45-degree angle until upper arms gently touch mat, then press up smoothly.
-- **Common Mistakes**: Bouncing elbows off floor or flaring elbows out at 90 degrees.
-- **Easier Alternative (Regression)**: Incline push-ups against a sturdy table or wall.
+    md.extend([
+        "",
+        "---",
+        "*Generated by VisionFit AI — See What You Have. Discover What You Can Do.*"
+    ])
 
-### Exercise 3: Supported Bent-Over Dumbbell Row
-- **Sets & Reps / Duration**: 3 Sets × 10 Reps per side
-- **Rest Interval**: 45 seconds
-- **Target Muscles**: Latissimus Dorsi, Rhomboids, Biceps
-- **Form & Technique**: Hinge forward at 45 degrees with flat spine. Pull elbow toward hip pocket, squeezing shoulder blade at peak contraction.
-- **Common Mistakes**: Rounding lower spine or using momentum to jerk weight.
-- **Easier Alternative (Regression)**: Resistance band seated rows or single dumbbell with hand braced on chair.
+    return "\n".join(md)
 
-### Exercise 4: Dead Bug Core Stabilization
-- **Sets & Reps / Duration**: 3 Sets × 12 Alternating Reps
-- **Rest Interval**: 45 seconds
-- **Target Muscles**: Transverse Abdominis, Deep Core
-- **Form & Technique**: Lie on back with arms extended and knees at 90 degrees. Lower opposite arm and leg while pressing lower back firmly into the floor.
-- **Common Mistakes**: Arching lower back off the floor.
-- **Easier Alternative (Regression)**: Heel taps without extending the arm.
 
----
+def format_workout_markdown(workout_data: Dict[str, Any]) -> str:
+    """Formats structured workout data into clean, exportable Markdown."""
+    title = workout_data.get("title", "Custom Fitness Session")
+    goal = workout_data.get("goal", "General Fitness")
+    experience = workout_data.get("experience_level", "All Levels")
+    duration = workout_data.get("estimated_duration_minutes", 30)
+    focus = workout_data.get("workout_focus", "Full Body")
+    location = workout_data.get("location", "Home / Gym")
+    desc = workout_data.get("description", "")
+    
+    vis_eq = workout_data.get("visually_identified_equipment", [])
+    uncertain = workout_data.get("uncertain_equipment", [])
+    target_muscles = workout_data.get("target_muscle_groups", [])
+    
+    warmup = workout_data.get("warmup", [])
+    exercises = workout_data.get("main_exercises", [])
+    cooldown = workout_data.get("cooldown", [])
+    safety_notes = workout_data.get("safety_reminders", [])
 
-## 🧘 D. Cool-Down & Mobility (5 Mins)
-1. **Child's Pose Breathing**: Hold 60 seconds — Lower back and lat relaxation.
-2. **Kneeling Hip Flexor Stretch**: 45 seconds per side — Unwind anterior chain.
-3. **Supine Figure-4 Glute Stretch**: 45 seconds per side — Relieve hip tension.
+    md = [
+        f"# 🏋️‍♂️ {title}",
+        f"**Goal:** {goal} | **Level:** {experience} | **Duration:** {duration} mins | **Focus:** {focus}",
+        f"**Target Muscles:** {', '.join(target_muscles) if target_muscles else 'Full Body'}",
+        "",
+        f"*{desc}*",
+        "",
+        "---",
+        "## 🔍 Equipment & Space Analysis",
+    ]
 
----
+    if vis_eq:
+        md.append(f"- **Identified Equipment:** {', '.join(vis_eq)}")
+    else:
+        md.append("- **Equipment:** Bodyweight / Minimal space")
+    if uncertain:
+        md.append(f"- **Uncertain / Incomplete Items:** {', '.join(uncertain)} *(verify stability and safety before use)*")
 
-## 🛡️ E. Important Safety & Coaching Notes
-- **Stop Cue**: Discontinue immediately if you experience sharp shooting pain, joint pinch, or dizziness.
-- **Equipment Safety**: Place dumbbells on floor with handles aligned so they cannot roll underfoot.
-- **Medical Disclaimer**: Listen to your body and adjust range of motion to your personal anatomy.
-"""
+    md.extend([
+        "",
+        "## 🔥 Warm-Up (5-8 Minutes)",
+    ])
+
+    for i, w in enumerate(warmup, 1):
+        if isinstance(w, dict):
+            name = w.get("name", "Dynamic Movement")
+            dur = w.get("duration", "45s")
+            cue = w.get("instructions", "")
+            md.append(f"{i}. **{name}** ({dur}) — {cue}")
+        else:
+            md.append(f"{i}. {w}")
+
+    md.extend([
+        "",
+        "## ⚡ Main Workout Routine",
+    ])
+
+    for i, ex in enumerate(exercises, 1):
+        name = ex.get("name", f"Exercise {i}")
+        sets = ex.get("sets", "3")
+        reps = ex.get("reps_or_duration", "10-12 reps")
+        rest = ex.get("rest_seconds", "60s")
+        muscles = ex.get("target_muscles", "")
+        technique = ex.get("technique_cues", "")
+        mistake = ex.get("common_mistake", "")
+        alt = ex.get("easier_alternative", "")
+
+        md.append(f"### {i}. {name}")
+        md.append(f"**Sets & Volume:** {sets} sets × {reps} | **Rest:** {rest} | **Muscles:** {muscles}")
+        if technique:
+            md.append(f"- **Proper Form:** {technique}")
+        if mistake:
+            md.append(f"- **Avoid This Mistake:** {mistake}")
+        if alt:
+            md.append(f"- **Easier Alternative:** {alt}")
+        md.append("")
+
+    md.extend([
+        "## 🧘 Cool-Down & Mobility (3-5 Minutes)",
+    ])
+
+    for i, c in enumerate(cooldown, 1):
+        if isinstance(c, dict):
+            name = c.get("name", "Stretch")
+            dur = c.get("duration", "30s each side")
+            cue = c.get("instructions", "")
+            md.append(f"- **{name}** ({dur}) — {cue}")
+        else:
+            md.append(f"- {c}")
+
+    md.extend([
+        "",
+        "## 🛡️ Critical Safety Notice",
+        "> **Important:** Inspect all equipment for stability and wear before starting. Stop immediately if you experience sharp pain, lightheadedness, or breathing distress. This plan is for general wellness; consult a physician before starting any new exercise routine if you have existing health conditions.",
+    ])
+
+    if safety_notes:
+        for note in safety_notes:
+            md.append(f"- {note}")
+
+    md.extend([
+        "",
+        "---",
+        "*Generated by VisionFit AI — See What You Have. Discover What You Can Do.*"
+    ])
+
+    return "\n".join(md)
 
