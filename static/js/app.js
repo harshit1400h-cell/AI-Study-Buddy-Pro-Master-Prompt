@@ -385,6 +385,16 @@ const App = {
         btn.classList.remove('bg-indigo-600', 'text-white', 'shadow-md', 'shadow-indigo-600/30');
         btn.classList.add('text-slate-400', 'hover:bg-slate-800', 'hover:text-slate-200');
       }
+    // Update mobile bottom nav items
+    document.querySelectorAll('.mobile-nav-btn').forEach(btn => {
+      const isSelected = btn.dataset.tab === tab;
+      if (isSelected) {
+        btn.classList.add('text-indigo-400');
+        btn.classList.remove('text-slate-400');
+      } else {
+        btn.classList.remove('text-indigo-400');
+        btn.classList.add('text-slate-400');
+      }
     });
 
     // Toggle view containers
@@ -394,6 +404,9 @@ const App = {
 
     const activeView = document.getElementById(`view-${tab}`);
     if (activeView) activeView.classList.remove('hidden');
+
+    // Close mobile drawer on switch
+    this.toggleMobileSidebar(true);
 
     // Trigger tab specific loads
     if (tab === 'chat') {
@@ -409,6 +422,21 @@ const App = {
     }
 
     lucide.createIcons();
+  },
+
+  toggleMobileSidebar(forceClose = false) {
+    const sidebar = document.getElementById('app-sidebar');
+    const backdrop = document.getElementById('sidebar-backdrop');
+    if (!sidebar) return;
+
+    const isOpen = !sidebar.classList.contains('-translate-x-full');
+    if (isOpen || forceClose) {
+      sidebar.classList.add('-translate-x-full');
+      if (backdrop) backdrop.classList.add('hidden');
+    } else {
+      sidebar.classList.remove('-translate-x-full');
+      if (backdrop) backdrop.classList.remove('hidden');
+    }
   },
 
   showToast(message, type = 'info') {
