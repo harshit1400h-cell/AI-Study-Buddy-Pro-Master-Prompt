@@ -34,3 +34,4 @@ python -m pytest visionfit-ai/tests/ -v
 For full documentation, architecture details, and troubleshooting, please refer to [visionfit-ai/README.md](file:///c:/Users/harsh/OneDrive/Desktop/New%20folder/visionfit-ai/README.md).
 
 # VISIONFIT-AI-MULTIMODAL-RECIPE-WORKOUT-GENERATOR-1
+# VISIONFIT-AI-MULTIMODAL-RECIPE-WORKOUT-GENERATOR-1
